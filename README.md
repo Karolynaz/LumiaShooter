@@ -29,6 +29,25 @@ Windows 10 PC for testing. White shapes on black, no external assets, no extra l
 * For deploying over USB: the *USB Device Connectivity* optional component of the UWP workload
   (adds the "IP over USB" service). Use a USB cable that carries data, not just power.
 
+## CI build (GitHub Actions) - no Windows PC needed
+
+Every push (and *Actions → Build ARM sideload package → Run workflow*) builds a signed
+**Release | ARM** sideload package on a GitHub-hosted `windows-2022` runner
+(see `.github/workflows/build.yml`):
+
+* Visual Studio 2022 MSBuild with the runner's UWP workload and .NET Native. The .NET Native 1.7
+  compiler comes from the NuGet package.
+* The runner has no Windows SDK 15063, so CI compiles against **10.0.17763.0**
+  (`/p:TargetPlatformVersion=10.0.17763.0`). **Min version stays 10.0.10586.0** and the NuGet package
+  stays 5.4.7, so the package still installs on Windows 10 Mobile 1607 (14393).
+* The package is signed with the included `LumiaShooter_TemporaryKey.pfx` (`CN=LumiaShooter`).
+* The artifact **LumiaShooter-ARM-sideload** contains `LumiaShooter_1.0.0.0_ARM.appx`, its `.cer`, and
+  `Dependencies/ARM/` (`Microsoft.VCLibs.ARM.14.00.appx`, `Microsoft.NET.Native.Runtime.1.7.appx`,
+  `Microsoft.NET.Native.Framework.1.7.appx`).
+* A ready-to-install bundle for the phone (with Lithuanian install instructions) is published under
+  **Releases** (`LumiaShooter-Lumia735.zip`, plus the same files one by one, so the phone can
+  download them directly).
+
 ## Open and build
 
 1. Unzip, double-click `LumiaShooter.sln`.

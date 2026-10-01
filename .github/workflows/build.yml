@@ -14,10 +14,10 @@ jobs:
       # TargetPlatformMinVersion stays 10.0.10586.0, so the package still installs on build 14393.
       TARGET_SDK: 10.0.17763.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: Show build environment
         shell: pwsh
@@ -39,17 +39,29 @@ jobs:
             /p:PackageCertificateKeyFile=LumiaShooter_TemporaryKey.pfx `
             /p:AppxPackageDir="$env:GITHUB_WORKSPACE\AppPackages\\"
 
-      - name: List package output
+      - name: List and check package output
         shell: pwsh
-        run: Get-ChildItem AppPackages -Recurse | Select-Object FullName, Length
+        run: |
+          Get-ChildItem AppPackages -Recurse -Include *.appx,*.cer | Select-Object FullName, Length
+          # Sanity check: ARM package that still installs on Windows 10 Mobile 1607 (14393).
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $appx = Get-ChildItem AppPackages -Recurse -Filter "LumiaShooter_*_ARM.appx" | Select-Object -First 1
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($appx.FullName)
+          $reader = New-Object System.IO.StreamReader($zip.GetEntry("AppxManifest.xml").Open())
+          [xml]$m = $reader.ReadToEnd(); $reader.Close(); $zip.Dispose()
+          $arch = $m.Package.Identity.ProcessorArchitecture
+          $min = $m.Package.Dependencies.TargetDeviceFamily.MinVersion
+          Write-Host "ProcessorArchitecture=$arch MinVersion=$min"
+          if ($arch -ne "arm") { throw "Package is not ARM" }
+          if ([version]$min -gt [version]"10.0.14393.0") { throw "MinVersion $min is too new for the Lumia 735" }
 
       - name: Upload sideload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LumiaShooter-ARM-sideload
+          # Only the ARM app package, its certificate and the ARM dependency packages.
           path: |
-            AppPackages/**/*.appx
-            AppPackages/**/*.appxbundle
-            AppPackages/**/*.cer
-            AppPackages/**/Dependencies/ARM/*
+            AppPackages/*/LumiaShooter_*_ARM.appx
+            AppPackages/*/LumiaShooter_*_ARM.cer
+            AppPackages/*/Dependencies/ARM/*.appx
           if-no-files-found: error
