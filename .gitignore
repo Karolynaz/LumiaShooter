@@ -1,0 +1,11 @@
+.vs/
+bin/
+obj/
+AppPackages/
+BundleArtifacts/
+*.user
+*.suo
+*.appx
+*.appxbundle
+*.appxupload
+packages/

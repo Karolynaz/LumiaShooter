@@ -1,0 +1,141 @@
+<Page
+    x:Class="LumiaShooter.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:LumiaShooter"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Black"
+    RequestedTheme="Dark">
+
+    <!--
+        InputRoot fills the whole window and receives all touch/mouse input
+        (it needs a non-null Background to be hit-testable).
+        The game itself is a fixed 360 x 640 world (GameRoot) that the Viewbox
+        scales to fit any screen; on a Lumia 735 it is exactly full screen.
+    -->
+    <Grid x:Name="InputRoot" Background="Black">
+        <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid x:Name="GameRoot" Width="360" Height="640" Background="Black">
+                <Grid.Clip>
+                    <RectangleGeometry Rect="0,0,360,640" />
+                </Grid.Clip>
+
+                <!-- Shapes are created in code (Rendering/GameRenderer.cs). -->
+                <Canvas x:Name="StarLayer" IsHitTestVisible="False" />
+                <Canvas x:Name="EntityLayer" IsHitTestVisible="False" />
+
+                <!-- ============ HUD (score, level progress, lives, power-ups) ============ -->
+                <Canvas x:Name="HudLayer" IsHitTestVisible="False" Visibility="Collapsed">
+                    <!-- Level progress bar: outline + fill (fill is scaled 0..1 in code) -->
+                    <Rectangle Canvas.Left="8" Canvas.Top="6" Width="344" Height="8"
+                               Stroke="White" StrokeThickness="1" />
+                    <Rectangle Canvas.Left="10" Canvas.Top="8" Width="340" Height="4" Fill="White">
+                        <Rectangle.RenderTransform>
+                            <ScaleTransform x:Name="ProgressScale" ScaleX="0" ScaleY="1" />
+                        </Rectangle.RenderTransform>
+                    </Rectangle>
+
+                    <TextBlock x:Name="ScoreText" Canvas.Left="8" Canvas.Top="17"
+                               Foreground="White" FontSize="18" FontWeight="Bold" Text="0" />
+                    <TextBlock x:Name="LevelText" Canvas.Left="110" Canvas.Top="19" Width="140"
+                               TextAlignment="Center" Foreground="White" FontSize="14" Text="LEVEL 1/5" />
+
+                    <!-- Lives: small ship icon + "x5" -->
+                    <Polygon Canvas.Left="304" Canvas.Top="21" Fill="White"
+                             Points="7,0 9,5 14,11 14,14 9,12 8,15 6,15 5,12 0,14 0,11 5,5" />
+                    <TextBlock x:Name="LivesText" Canvas.Left="321" Canvas.Top="17"
+                               Foreground="White" FontSize="18" FontWeight="Bold" Text="x5" />
+
+                    <!-- Active power-ups with seconds left, e.g. "TRIPLE 7   SHIELD 4" -->
+                    <TextBlock x:Name="PowerText" Canvas.Left="8" Canvas.Top="40"
+                               Foreground="#FFCCCCCC" FontSize="12" Text="" />
+
+                    <!-- Boss health bar (only visible during the boss fight) -->
+                    <Canvas x:Name="BossBar" Canvas.Left="0" Canvas.Top="58" Visibility="Collapsed">
+                        <TextBlock Canvas.Left="8" Canvas.Top="-3" Foreground="White"
+                                   FontSize="12" FontWeight="Bold" Text="BOSS" />
+                        <Rectangle Canvas.Left="48" Canvas.Top="0" Width="304" Height="10"
+                                   Stroke="White" StrokeThickness="1" />
+                        <Rectangle Canvas.Left="50" Canvas.Top="2" Width="300" Height="6" Fill="#FFAAAAAA">
+                            <Rectangle.RenderTransform>
+                                <ScaleTransform x:Name="BossScale" ScaleX="1" ScaleY="1" />
+                            </Rectangle.RenderTransform>
+                        </Rectangle>
+                    </Canvas>
+
+                    <!-- "SHIELD!" / "+100" etc. after a pick-up -->
+                    <TextBlock x:Name="PickupText" Canvas.Left="0" Canvas.Top="420" Width="360"
+                               TextAlignment="Center" Foreground="White" FontSize="22"
+                               FontWeight="Bold" Text="" />
+                </Canvas>
+
+                <!-- Darkens the game behind PAUSED / GAME OVER / YOU WIN -->
+                <Rectangle x:Name="DimRect" Fill="#B0000000" IsHitTestVisible="False"
+                           Visibility="Collapsed" />
+
+                <!-- ============ Centered messages (title, LEVEL n, PAUSED, ...) ============ -->
+                <StackPanel x:Name="OverlayPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Margin="10,0,10,40" IsHitTestVisible="False">
+                    <TextBlock x:Name="OverlayTitle" Foreground="White" FontSize="40" FontWeight="Bold"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" MaxWidth="340" Text="LUMIA SHOOTER" />
+                    <TextBlock x:Name="OverlayLine1" Foreground="White" FontSize="22" FontWeight="Bold"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" MaxWidth="340" Margin="0,16,0,0" Text="TAP TO START" />
+                    <TextBlock x:Name="OverlayLine2" Foreground="White" FontSize="18"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" MaxWidth="340" Margin="0,10,0,0" Text="" />
+                    <TextBlock x:Name="OverlayLine3" Foreground="#FFCCCCCC" FontSize="14"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" MaxWidth="340" Margin="0,10,0,0" Text="" />
+
+                    <!-- Power-up legend, shown on the title screen only -->
+                    <StackPanel x:Name="LegendPanel" HorizontalAlignment="Center" Margin="0,24,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,3">
+                            <Border Width="26" Height="26" BorderBrush="White" BorderThickness="2" CornerRadius="4">
+                                <TextBlock Text="2" Foreground="White" FontWeight="Bold" FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="DOUBLE SHOT" Foreground="White" FontSize="14"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3">
+                            <Border Width="26" Height="26" BorderBrush="White" BorderThickness="2" CornerRadius="4">
+                                <TextBlock Text="3" Foreground="White" FontWeight="Bold" FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="TRIPLE SHOT" Foreground="White" FontSize="14"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3">
+                            <Border Width="26" Height="26" BorderBrush="White" BorderThickness="2" CornerRadius="4">
+                                <TextBlock Text="S" Foreground="White" FontWeight="Bold" FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="SHIELD" Foreground="White" FontSize="14"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3">
+                            <Border Width="26" Height="26" BorderBrush="White" BorderThickness="2" CornerRadius="4">
+                                <TextBlock Text="+" Foreground="White" FontWeight="Bold" FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="EXTRA LIFE" Foreground="White" FontSize="14"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3">
+                            <Border Width="26" Height="26" BorderBrush="White" BorderThickness="2" CornerRadius="4">
+                                <TextBlock Text="$" Foreground="White" FontWeight="Bold" FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="BONUS POINTS" Foreground="White" FontSize="14"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Viewbox>
+    </Grid>
+</Page>

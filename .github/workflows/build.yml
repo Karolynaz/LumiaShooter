@@ -1,0 +1,55 @@
+name: Build ARM sideload package
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-arm:
+    # windows-2022 = Visual Studio 2022 with the UWP workload, .NET Native and ARM tools,
+    # plus Windows SDK 10.0.17763 (the oldest SDK on hosted runners; 15063 is not installed).
+    runs-on: windows-2022
+    env:
+      # The project targets SDK 15063; the runner only has 17763+, so CI compiles against 17763.
+      # TargetPlatformMinVersion stays 10.0.10586.0, so the package still installs on build 14393.
+      TARGET_SDK: 10.0.17763.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Show build environment
+        shell: pwsh
+        run: |
+          msbuild -version
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP" | Select-Object Name
+          Get-ChildItem "C:\Program Files (x86)\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs" -Recurse -Filter *.appx -ErrorAction SilentlyContinue | Select-Object FullName
+
+      - name: Build Release|ARM sideload package
+        shell: pwsh
+        run: |
+          msbuild LumiaShooter.sln /restore /m /v:minimal `
+            /p:Configuration=Release /p:Platform=ARM `
+            /p:TargetPlatformVersion=$env:TARGET_SDK `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Never `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile=LumiaShooter_TemporaryKey.pfx `
+            /p:AppxPackageDir="$env:GITHUB_WORKSPACE\AppPackages\\"
+
+      - name: List package output
+        shell: pwsh
+        run: Get-ChildItem AppPackages -Recurse | Select-Object FullName, Length
+
+      - name: Upload sideload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumiaShooter-ARM-sideload
+          path: |
+            AppPackages/**/*.appx
+            AppPackages/**/*.appxbundle
+            AppPackages/**/*.cer
+            AppPackages/**/Dependencies/ARM/*
+          if-no-files-found: error
